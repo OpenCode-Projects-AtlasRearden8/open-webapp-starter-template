@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Asdale App Shell — Offline Web App Template</title>
+  <meta name="description" content="A copy-ready, single-file offline web app shell with localStorage helpers, settings, export, reset, and a worked demo module. Runs 100% offline.">
+  <!-- Inline SVG favicon: keeps the app truly single-file and offline. -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%234f46a6'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='19' font-weight='bold' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+  <style>
+    :root {
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --paper: #ffffff;
+      --wash: #f4f5fb;
+      --line: #e5e7eb;
+      --accent: #4f46a6;
+      --accent-ink: #ffffff;
+      --danger: #b42318;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--ink);
+      background: var(--wash);
+      line-height: 1.55;
+    }
+
+    header.app-header {
+      background: var(--paper);
+      border-bottom: 1px solid var(--line);
+      padding: 14px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header.app-header h1 { font-size: 1.1rem; margin: 0; }
+    header.app-header h1 small { font-weight: normal; color: var(--muted); }
+
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    button {
+      font: inherit;
+      padding: 6px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: var(--accent);
+      color: var(--accent-ink);
+      cursor: pointer;
+    }
+
+    button:hover { filter: brightness(1.1); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    button.quiet { background: var(--paper); color: var(--ink); }
+    button.dangerous { background: var(--paper); color: var(--danger); border-color: var(--danger); }
+
+    .wrap { max-width: 720px; margin: 0 auto; padding: 16px 20px 48px; }
+
+    .panel {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+
+    #settings-panel { border-left: 4px solid var(--accent); }
+
+    .tag {
+      display: inline-block;
+      padding: 1px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+
+    form#add-form { display: flex; gap: 8px; margin: 12px 0; }
+
+    form#add-form input {
+      flex: 1;
+      font: inherit;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+    }
+
+    ul.counter-list { list-style: none; margin: 0; padding: 0; }
+
+    ul.counter-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+    }
+
+    .item-label { overflow-wrap: anywhere; }
+
+    .item-controls { display: flex; align-items: center; gap: 6px; }
+
+    .item-controls .count {
+      min-width: 2.5em;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+
+    .item-controls button {
+      padding: 4px 12px;
+      border-radius: 8px;
+    }
+
+    .empty-state {
+      padding: 28px 20px;
+      text-align: center;
+      color: var(--muted);
+      background: var(--paper);
+      border: 1px dashed var(--line);
+      border-radius: var(--radius);
+    }
+
+    .empty-state strong { color: var(--ink); }
+
+    #list-summary { color: var(--muted); font-size: 0.9rem; }
+
+    .notice { font-size: 0.9rem; color: var(--muted); }
+    .notice strong { color: var(--ink); }
+
+    footer.site-footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 24px 16px 40px;
+    }
+
+    /* Print stylesheet: keep the data, drop the chrome. */
+    @media print {
+      body { background: #fff; font-size: 12.5pt; }
+      .toolbar, #settings-panel, #add-form, .item-controls, .notice.hide-print { display: none !important; }
+      .panel, ul.counter-list li { border: none; box-shadow: none; background: #fff; }
+      ul.counter-list li { border-bottom: 1px solid #ddd; border-radius: 0; }
+      .item-controls .count { font-weight: bold; }
+      .wrap { max-width: none; padding: 0; }
+      a { color: #000; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>Counter List <small>— offline demo app template</small></h1>
+    <div class="toolbar">
+      <button type="button" id="btn-settings" aria-expanded="false" aria-controls="settings-panel">Settings</button>
+      <button type="button" id="btn-export" class="quiet">Export data</button>
+      <button type="button" id="btn-reset" class="dangerous">Reset</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+
+    <section id="settings-panel" class="panel" hidden>
+      <h2>Settings</h2>
+      <p>
+        Storage status: <span class="tag" id="storage-status">checking…</span>
+      </p>
+      <p class="notice">
+        This app runs <strong>100% offline</strong>. Everything you enter is saved only in this
+        browser's localStorage — <strong>nothing is ever sent to a server</strong>. Export
+        regularly if this list matters to you; clearing browser data will erase it.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>Demo module: counter list</h2>
+      <p class="notice">
+        A tiny worked example: name things, tap to count them, and the totals survive a
+        refresh. Replace this module with your own idea.
+      </p>
+
+      <form id="add-form">
+        <label for="add-input" class="notice" style="position:absolute; left:-9999px;">Item name</label>
+        <input id="add-input" type="text" placeholder="e.g. Coffee, pages read, chess games won" autocomplete="off">
+        <button type="submit" id="btn-add">Add</button>
+      </form>
+
+      <p id="list-summary" hidden></p>
+      <ul id="counter-list" class="counter-list"></ul>
+
+      <div id="empty-state" class="empty-state" hidden>
+        <p><strong>Nothing here yet — that's normal.</strong></p>
+        <p>
+          Type a name above (like "Glasses of water") and press <strong>Add</strong>.
+          A counter starts at 0 and every increase is saved automatically, offline,
+          in this browser.
+        </p>
+      </div>
+    </section>
+
+  </div>
+
+  <footer class="site-footer">
+    <p>Single-file offline app shell · data stays in your browser ·
+      a friendly template from Asdale Dynamics, LLC — MIT licensed.</p>
+  </footer>
+
+<script>
+/* APP-TESTABLE-BEGIN */
+"use strict";
+
+/* ---------------------------------------------------------------------------
+ * Storage helpers
+ * Plain wrappers around localStorage so the rest of the app can talk to it
+ * in one consistent way (and so the test runner can stub or wrap it).
+ * ------------------------------------------------------------------------- */
+
+var APP_NAME = "Asdale App Shell";
+var STORAGE_KEY = "asdale-shell.state";
+var SCHEMA_VERSION = 2;
+
+/* Returns true if localStorage actually works (it can be blocked or full). */
+function storageAvailable() {
+  try {
+    var probe = STORAGE_KEY + ".probe";
+    localStorage.setItem(probe, "1");
+    var ok = localStorage.getItem(probe) === "1";
+    localStorage.removeItem(probe);
+    return ok;
+  } catch (err) {
+    return false;
+  }
+}
+
+/* Reads a JSON value stored under key; returns fallback if missing or corrupt. */
+function getJSON(key, fallback) {
+  try {
+    var raw = localStorage.getItem(key);
+    if (raw === null || raw === undefined) return fallback;
+    var value = JSON.parse(raw);
+    if (value === undefined) return fallback;
+    return value;
+  } catch (err) {
+    return fallback;
+  }
+}
+
+/* Writes value as JSON; returns true on success, false if storage refused it. */
+function setJSON(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+/* Deletes a key; returns true if it is gone afterwards (or never existed). */
+function removeKey(key) {
+  try {
+    localStorage.removeItem(key);
+    return localStorage.getItem(key) === null;
+  } catch (err) {
+    return false;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Schema migration + data model
+ * Changing an app's saved-data shape over time is the #1 way to lose people's
+ * data. These helpers make every saved payload declare a schemaVersion and
+ * migrateSchema() walks old shapes up to the current one.
+ * ------------------------------------------------------------------------- */
+
+function defaultState() {
+  return { schemaVersion: SCHEMA_VERSION, items: [] };
+}
+
+function clampCount(value) {
+  var num = parseInt(value, 10);
+  if (isNaN(num) || num < 0) return 0;
+  return num;
+}
+
+function newId() {
+  return "id-" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 1e9).toString(36);
+}
+
+/* Accepts anything an old version may have saved and returns a well-formed,
+ * SCHEMA_VERSION-shaped item. Old v1 items were plain strings. */
+function normaliseItem(raw) {
+  if (typeof raw === "string") {
+    return { id: newId(), label: raw, count: 0 };
+  }
+  if (raw !== null && typeof raw === "object") {
+    return {
+      id: typeof raw.id === "string" && raw.id !== "" ? raw.id : newId(),
+      label: typeof raw.label === "string" ? raw.label : String(raw.label === undefined ? "" : raw.label),
+      count: clampCount(raw.count)
+    };
+  }
+  return { id: newId(), label: String(raw === undefined ? "" : raw), count: 0 };
+}
+
+/* Walks any saved payload up to the current schema. Never trusts the input. */
+function migrateSchema(raw) {
+  var source = raw !== null && raw !== undefined && typeof raw === "object" && !Array.isArray(raw)
+    ? raw
+    : {};
+  var rawItems = Array.isArray(source.items) ? source.items : [];
+  var state = defaultState();
+  state.items = rawItems.map(normaliseItem);
+  return state;
+}
+
+/* Reads, migrates, and returns the app state. */
+function loadState(key) {
+  var state = migrateSchema(getJSON(key || STORAGE_KEY, null));
+  return state;
+}
+
+/* Persists the state; returns whether the write succeeded. */
+function saveState(state, key) {
+  return setJSON(key || STORAGE_KEY, state);
+}
+
+/* Wipes the saved data and returns a clean default state. */
+function resetState(key) {
+  removeKey(key || STORAGE_KEY);
+  return defaultState();
+}
+
+/* Snapshot for the Export button: metadata + migrated data, no personal info. */
+function buildExportPayload(state) {
+  return {
+    app: APP_NAME,
+    schemaVersion: SCHEMA_VERSION,
+    exportedAt: new Date().toISOString(),
+    data: migrateSchema(state)
+  };
+}
+/* APP-TESTABLE-END */
+
+/* ---------------------------------------------------------------------------
+ * Demo module wiring
+ * Everything below touches the DOM, so it is skipped by the Node test runner
+ * (which loads only the APP-TESTABLE block above).
+ * ------------------------------------------------------------------------- */
+
+if (typeof document !== "undefined") {
+  (function () {
+    var state = loadState();
+    var STORAGE_OK = storageAvailable();
+
+    var listEl = document.getElementById("counter-list");
+    var emptyEl = document.getElementById("empty-state");
+    var summaryEl = document.getElementById("list-summary");
+    var addForm = document.getElementById("add-form");
+    var addInput = document.getElementById("add-input");
+
+    function persist() {
+      var ok = saveState(state);
+      if (!ok && STORAGE_OK) {
+        window.alert("Could not save (storage may be full). Export your data before closing.");
+      }
+    }
+
+    function render() {
+      listEl.textContent = "";
+
+      state.items.forEach(function (item) {
+        var li = document.createElement("li");
+        li.className = "counter-list-item";
+        li.dataset.id = item.id;
+
+        var label = document.createElement("span");
+        label.className = "item-label";
+        label.textContent = item.label;
+
+        var controls = document.createElement("span");
+        controls.className = "item-controls";
+
+        var dec = document.createElement("button");
+        dec.type = "button";
+        dec.className = "dec";
+        dec.textContent = "−1";
+        dec.disabled = item.count <= 0;
+
+        var count = document.createElement("span");
+        count.className = "count";
+        count.textContent = String(item.count);
+
+        var inc = document.createElement("button");
+        inc.type = "button";
+        inc.className = "inc";
+        inc.textContent = "+1";
+
+        var del = document.createElement("button");
+        del.type = "button";
+        del.className = "del";
+        del.textContent = "Remove";
+
+        controls.appendChild(dec);
+        controls.appendChild(count);
+        controls.appendChild(inc);
+        controls.appendChild(del);
+
+        li.appendChild(label);
+        li.appendChild(controls);
+        listEl.appendChild(li);
+      });
+
+      var isEmpty = state.items.length === 0;
+      emptyEl.hidden = !isEmpty;
+      summaryEl.hidden = isEmpty;
+
+      if (!isEmpty) {
+        var total = state.items.reduce(function (sum, item) { return sum + item.count; }, 0);
+        summaryEl.textContent = state.items.length + (state.items.length === 1 ? " item" : " items") +
+          " · " + total + " total count";
+      }
+    }
+
+    addForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      var label = addInput.value.trim();
+      if (label === "") {
+        addInput.placeholder = "Type a name first, like 'Coffee'";
+        addInput.focus();
+        return;
+      }
+      state.items.push({ id: newId(), label: label, count: 0 });
+      addInput.value = "";
+      persist();
+      render();
+      addInput.focus();
+    });
+
+    listEl.addEventListener("click", function (event) {
+      var button = event.target.closest("button");
+      if (!button) return;
+      var li = event.target.closest("li");
+      var item = state.items.find(function (candidate) { return candidate.id === li.dataset.id; });
+      if (!item) return;
+
+      if (button.classList.contains("inc")) item.count += 1;
+      else if (button.classList.contains("dec")) item.count = clampCount(item.count - 1);
+      else if (button.classList.contains("del")) {
+        if (!window.confirm("Remove \"" + item.label + "\" and its count?")) return;
+        state.items = state.items.filter(function (candidate) { return candidate.id !== item.id; });
+      } else {
+        return;
+      }
+
+      persist();
+      render();
+    });
+
+    document.getElementById("btn-settings").addEventListener("click", function () {
+      var panel = document.getElementById("settings-panel");
+      var open = panel.hidden ? true : false;
+      panel.hidden = !open;
+      this.setAttribute("aria-expanded", open ? "true" : "false");
+      document.getElementById("storage-status").textContent =
+        STORAGE_OK ? "localStorage OK — data saves automatically" : "storage unavailable — export instead";
+    });
+
+    document.getElementById("btn-export").addEventListener("click", function () {
+      var payload = buildExportPayload(state);
+      var datePart = payload.exportedAt.slice(0, 10);
+      var filename = "counter-list-export-" + datePart + ".json";
+      try {
+        var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        window.alert("Export failed. Copy your data manually:\n\n" + JSON.stringify(payload, null, 2));
+      }
+    });
+
+    document.getElementById("btn-reset").addEventListener("click", function () {
+      if (!window.confirm("Reset the app? This erases every saved item in this browser. Export first if you might want them back.")) {
+        return;
+      }
+      state = resetState();
+      persist();
+      render();
+    });
+
+    render();
+  })();
+}
+</script>
+</body>
+</html>
